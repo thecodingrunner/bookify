@@ -6,7 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { getBookBySlug } from "@/lib/actions/book.actions";
 import VapiControls from "@/components/VapiControls";
 
-export const instant = false;
+// export const instant = false;
 
 interface BookDetailsPageProps {
   params: Promise<{
