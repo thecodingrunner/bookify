@@ -1,11 +1,12 @@
-import { ClerkProvider } from "@clerk/nextjs";
-import { shadcn } from "@clerk/ui/themes";
+import {ClerkProvider} from "@clerk/nextjs";
+import {shadcn} from "@clerk/ui/themes";
 import type {Metadata} from "next";
-import { Suspense } from "react";
+import {Suspense} from "react";
 import {Mona_Sans, IBM_Plex_Serif} from "next/font/google";
 
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import {Toaster} from "sonner";
 
 const ibmPlexSerif = IBM_Plex_Serif({
     variable: "--font-ibm-plex-serif",
@@ -27,18 +28,19 @@ export const metadata: Metadata = {
 
 export default function RootLayout({children}: LayoutProps<"/">) {
     return (
-      <html
-          lang="en"
-          className={`${ibmPlexSerif.variable} ${monaSans.variable} relative font-sans h-full antialiased`}
-      >
+        <html
+            lang="en"
+            className={`${ibmPlexSerif.variable} ${monaSans.variable} relative font-sans h-full antialiased`}
+        >
         <body className="min-h-full flex flex-col">
-          <ClerkProvider appearance={{ theme: shadcn }}>
+        <ClerkProvider appearance={{theme: shadcn}}>
             <Suspense fallback={null}>
-              <Navbar/>
+                <Navbar/>
             </Suspense>
             {children}
-          </ClerkProvider>
+            <Toaster/>
+        </ClerkProvider>
         </body>
-      </html>
+        </html>
     );
 }

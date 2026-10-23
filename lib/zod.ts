@@ -7,33 +7,15 @@ import {
 } from './constants';
 
 export const UploadSchema = z.object({
-    pdfFile: z
-        .custom<File | null>((file) => (typeof window !== 'undefined' ? file instanceof File : Boolean(file)), {
-            message: 'PDF file is required',
-        })
-        .refine(
-            (file) => file instanceof File && file.size <= MAX_FILE_SIZE,
-            'PDF file must be less than 50MB'
-        )
-        .refine(
-            (file) => file instanceof File && ACCEPTED_PDF_TYPES.includes(file.type),
-            'Only PDF files are accepted'
-        ),
-    coverImage: z
-        .custom<File | null | undefined>()
-        .refine(
-            (file) => !file || (file instanceof File && file.size <= MAX_IMAGE_SIZE),
-            'Image file must be less than 10MB'
-        )
-        .refine(
-            (file) => !file || (file instanceof File && ACCEPTED_IMAGE_TYPES.includes(file.type)),
-            'Only JPEG, PNG, or WebP images are accepted'
-        )
-        .optional()
-        .nullable(),
-    title: z.string().min(1, 'Title is required'),
-    author: z.string().min(1, 'Author Name is required'),
-    voice: z.string().min(1, 'Assistant voice is required'),
+    title: z.string().min(1, "Title is required").max(100, "Title is too long"),
+    author: z.string().min(1, "Author name is required").max(100, "Author name is too long"),
+    persona: z.string().min(1, "Please select a voice"),
+    pdfFile: z.instanceof(File, { message: "PDF file is required" })
+        .refine((file) => file.size <= MAX_FILE_SIZE, "File size must be less than 50MB")
+        .refine((file) => ACCEPTED_PDF_TYPES.includes(file.type), "Only PDF files are accepted"),
+    coverImage: z.instanceof(File).optional()
+        .refine((file) => !file || file.size <= MAX_IMAGE_SIZE, "Image size must be less than 10MB")
+        .refine((file) => !file || ACCEPTED_IMAGE_TYPES.includes(file.type), "Only .jpg, .jpeg, .png and .webp formats are supported"),
 });
 
 export type UploadSchemaType = z.infer<typeof UploadSchema>;
