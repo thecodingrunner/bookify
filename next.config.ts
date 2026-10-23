@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
   },
   experimental: {
     agentFeedback: true,
+    serverActions: {
+      bodySizeLimit: '100mb',
+    }
   },
   // cacheComponents: true,
   // partialPrefetching: true,
