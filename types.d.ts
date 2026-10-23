@@ -116,7 +116,18 @@ export interface FileUploadFieldProps<T extends FieldValues> {
     placeholder: string;
     hint: string;
 }
-import {PLANS, PlanType} from "@/lib/subscription-constants";
+import {PlanType} from "@/lib/subscription-constants";
+
+// ============================================
+// SUBSCRIPTION & BILLING TYPES
+// ============================================
+
+export interface PlanLimits {
+    maxBooks: number;
+    maxSessionsPerMonth: number; // Infinity = unlimited
+    maxSessionMinutes: number;
+    hasSessionHistory: boolean;
+}
 
 export interface SessionCheckResult {
     allowed: boolean;

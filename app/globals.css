@@ -197,6 +197,9 @@
   .clerk-subscriptions {
     @apply py-18 min-h-screen max-w-7xl px-5 mx-auto w-full flex flex-col pb-12 items-center container;
   }
+  .subscriptions-header {
+    @apply flex flex-col gap-5 items-center text-center mb-12 max-w-2xl;
+  }
   .page-title {
     @apply !text-3xl font-bold text-center;
   }
@@ -799,6 +802,7 @@
 
 /* Pricing cards container */
 .clerk-pricing-table-wrapper {
+  width: 100%;
   padding: 0.5rem;
   background: var(--bg-primary);
 }
