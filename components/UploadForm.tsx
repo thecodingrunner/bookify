@@ -119,7 +119,14 @@ const UploadForm = ({ onSubmitAction }: UploadFormProps) => {
                 fileSize: pdfFile.size,
             });
 
-            if (!book.success) throw new Error("Failed to create book");
+            if (!book.success) {
+                if (book.isBillingError) {
+                    toast.error(String(book.error));
+                    router.push('/subscriptions');
+                    return;
+                }
+                throw new Error("Failed to create book");
+            }
 
             if (book.alreadyExists) {
                 toast.info("Book with same title already exists.");

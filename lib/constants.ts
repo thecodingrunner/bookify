@@ -167,3 +167,18 @@ export const CLERK_AUTH_APPEARANCE_OVERRIDE = {
     footerActionLink: 'text-[#212a3b] hover:text-[#3d485e] text-base font-medium',
 };
 
+// Clerk PricingTable appearance - matches the app's warm literary palette (see globals.css)
+export const CLERK_PRICING_TABLE_APPEARANCE = {
+    variables: {
+        colorPrimary: BRAND_COLOR,
+        colorForeground: BRAND_COLOR,
+        colorBackground: '#ffffff',
+        borderRadius: '0.75rem',
+        fontFamily: 'var(--font-mona-sans), sans-serif',
+    },
+    elements: {
+        pricingTableCardTitle: 'font-serif !text-2xl font-semibold',
+        pricingTableCardFee: 'font-serif',
+    },
+};
+

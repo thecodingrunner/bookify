@@ -5,11 +5,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Vapi from '@vapi-ai/web';
 import { useAuth } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 import { ASSISTANT_ID, DEFAULT_VOICE, VOICE_SETTINGS } from '@/lib/constants';
 import { getVoice } from '@/lib/utils';
 import { IBook, Messages } from '@/types';
 import { startVoiceSession, endVoiceSession } from '@/lib/actions/session.actions';
+import { useSubscription } from '@/hooks/useSubscription';
 
 export function useLatestRef<T>(value: T) {
     const ref = useRef(value);
@@ -39,9 +42,24 @@ function getVapi() {
 
 export type CallStatus = 'idle' | 'connecting' | 'starting' | 'listening' | 'thinking' | 'speaking';
 
+// Vapi emits these on 'error' but keeps the call running (e.g. Krisp noise cancellation or the
+// audio level observer failing), so they must not reset the call state
+const NON_FATAL_ERROR_TYPES = new Set([
+    'audio-processing-setup-error',
+    'audio-processor-recovery-error',
+    'audio-observer-setup-error',
+    'video-recording-setup-error',
+]);
+
+interface VapiErrorEvent {
+    type?: string;
+    error?: { message?: string };
+}
+
 export function useVapi(book: IBook) {
     const { userId } = useAuth();
-    // const { limits } = useSubscription();
+    const { limits } = useSubscription();
+    const router = useRouter();
 
     const [status, setStatus] = useState<CallStatus>('idle');
     const [messages, setMessages] = useState<Messages[]>([]);
@@ -56,8 +74,9 @@ export function useVapi(book: IBook) {
     const isStoppingRef = useRef(false);
 
     // Keep refs in sync with latest values for use in callbacks
-    // const maxDurationRef = useLatestRef(limits.maxSessionMinutes * 60);
+    const maxDurationRef = useLatestRef(limits.maxSessionMinutes * SECONDS_PER_MINUTE);
     const durationRef = useLatestRef(duration);
+    const routerRef = useLatestRef(router);
     const voice = book.persona || DEFAULT_VOICE;
 
     // Set up Vapi event listeners
@@ -78,14 +97,22 @@ export function useVapi(book: IBook) {
                         setDuration(newDuration);
 
                         // Check duration limit
-                        // if (newDuration >= maxDurationRef.current) {
-                        //     getVapi().stop();
-                        //     setLimitError(
-                        //         `Session time limit (${Math.floor(
-                        //             maxDurationRef.current / SECONDS_PER_MINUTE,
-                        //         )} minutes) reached. Upgrade your plan for longer sessions.`,
-                        //     );
-                        // }
+                        if (newDuration >= maxDurationRef.current) {
+                            if (timerRef.current) {
+                                clearInterval(timerRef.current);
+                                timerRef.current = null;
+                            }
+                            isStoppingRef.current = true;
+                            getVapi().stop();
+
+                            // Time limit reached: notify and send the user back to the homepage
+                            toast.error(
+                                `Session time limit (${Math.floor(
+                                    maxDurationRef.current / SECONDS_PER_MINUTE,
+                                )} minutes) reached. Upgrade your plan for longer sessions.`,
+                            );
+                            routerRef.current.push('/');
+                        }
                     }
                 }, TIMER_INTERVAL_MS);
             },
@@ -128,9 +155,22 @@ export function useVapi(book: IBook) {
             message: (message: {
                 type: string;
                 role: string;
+                status?: 'started' | 'stopped';
                 transcriptType: string;
                 transcript: string;
             }) => {
+                // Server-side speech events: reliable even if the browser's audio level observer fails
+                if (message.type === 'speech-update') {
+                    if (isStoppingRef.current) return;
+
+                    if (message.role === 'assistant') {
+                        setStatus(message.status === 'started' ? 'speaking' : 'listening');
+                    } else if (message.role === 'user') {
+                        setStatus(message.status === 'started' ? 'listening' : 'thinking');
+                    }
+                    return;
+                }
+
                 if (message.type !== 'transcript') return;
 
                 // User finished speaking → AI is thinking
@@ -167,8 +207,12 @@ export function useVapi(book: IBook) {
                 }
             },
 
-            error: (error: Error) => {
+            error: (error: VapiErrorEvent) => {
                 console.error('Vapi error:', error);
+
+                // Non-fatal errors: the call continues, so keep the status, timer and session running
+                if (error.type && NON_FATAL_ERROR_TYPES.has(error.type)) return;
+
                 // Don't reset isStoppingRef here - delayed events may still fire
                 setStatus('idle');
                 setCurrentMessage('');
@@ -189,7 +233,7 @@ export function useVapi(book: IBook) {
                 }
 
                 // Show user-friendly error message
-                const errorMessage = error.message?.toLowerCase() || '';
+                const errorMessage = `${error.type ?? ''} ${error.error?.message ?? ''}`.toLowerCase();
                 if (errorMessage.includes('timeout') || errorMessage.includes('silence')) {
                     setLimitError('Session ended due to inactivity. Click the mic to start again.');
                 } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
@@ -289,10 +333,10 @@ export function useVapi(book: IBook) {
         status === 'speaking';
 
     // Calculate remaining time
-    // const maxDurationSeconds = limits.maxSessionMinutes * SECONDS_PER_MINUTE;
-    // const remainingSeconds = Math.max(0, maxDurationSeconds - duration);
-    // const showTimeWarning =
-    //     isActive && remainingSeconds <= TIME_WARNING_THRESHOLD && remainingSeconds > 0;
+    const maxDurationSeconds = limits.maxSessionMinutes * SECONDS_PER_MINUTE;
+    const remainingSeconds = Math.max(0, maxDurationSeconds - duration);
+    const showTimeWarning =
+        isActive && remainingSeconds <= TIME_WARNING_THRESHOLD && remainingSeconds > 0;
 
     return {
         status,
@@ -306,9 +350,9 @@ export function useVapi(book: IBook) {
         limitError,
         clearError,
         persona: voice,
-        // maxDurationSeconds,
-        // remainingSeconds,
-        // showTimeWarning,
+        maxDurationSeconds,
+        remainingSeconds,
+        showTimeWarning,
     };
 }
 

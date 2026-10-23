@@ -1,16 +1,37 @@
 "use client"
 
-import useVapi from "@/hooks/useVapi";
+import useVapi, {CallStatus} from "@/hooks/useVapi";
 import {IBook} from "@/types";
-import React from "react";
+import React, {useEffect} from "react";
+import {toast} from "sonner";
 import Image from "next/image";
 import {Mic, MicOff} from "lucide-react";
 import Transcript from "@/components/Transcript";
 import {formatDuration} from "@/lib/utils";
 
+const statusDisplay: Record<CallStatus, { label: string; dotClass: string }> = {
+    idle: {label: "Ready", dotClass: "vapi-status-dot-ready"},
+    connecting: {label: "Connecting", dotClass: "vapi-status-dot-connecting"},
+    starting: {label: "Starting", dotClass: "vapi-status-dot-connecting"},
+    listening: {label: "Listening", dotClass: "vapi-status-dot-listening"},
+    thinking: {label: "Thinking", dotClass: "vapi-status-dot-thinking"},
+    speaking: {label: "Speaking", dotClass: "vapi-status-dot-speaking"},
+};
+
 const VapiControls = ({book}: { book: IBook }) => {
-    const {status, isActive, messages, currentMessage, currentUserMessage, duration, start, stop, persona} =
-        useVapi(book);
+    const {
+        status, isActive, messages, currentMessage, currentUserMessage, duration, start, stop, persona,
+        limitError, clearError, maxDurationSeconds, showTimeWarning,
+    } = useVapi(book);
+
+    const {label: statusLabel, dotClass: statusDotClass} = statusDisplay[status];
+
+    // Surface session errors (e.g. monthly session limit, connection issues)
+    useEffect(() => {
+        if (!limitError) return;
+        toast.error(limitError);
+        clearError();
+    }, [limitError, clearError]);
 
     return (
         <div className="max-w-4xl mx-auto flex flex-col gap-6 w-full">
@@ -53,8 +74,8 @@ const VapiControls = ({book}: { book: IBook }) => {
 
                     <div className="flex flex-wrap items-center gap-3 mt-2">
                         <div className="vapi-status-indicator">
-                            <span className="vapi-status-dot vapi-status-dot-ready"/>
-                            <span className="vapi-status-text">Ready</span>
+                            <span className={`vapi-status-dot ${statusDotClass}`}/>
+                            <span className="vapi-status-text">{statusLabel}</span>
                         </div>
                         <div className="vapi-status-indicator">
                             <span className="vapi-status-text">
@@ -62,8 +83,8 @@ const VapiControls = ({book}: { book: IBook }) => {
                             </span>
                         </div>
                         <div className="vapi-status-indicator">
-                            <span className="vapi-status-text font-semibold">
-                                {formatDuration(duration)}/15:00
+                            <span className={`vapi-status-text font-semibold ${showTimeWarning ? "!text-red-600" : ""}`}>
+                                {formatDuration(duration)}/{formatDuration(maxDurationSeconds)}
                             </span>
                         </div>
                     </div>
